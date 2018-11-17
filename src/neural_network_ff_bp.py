@@ -42,29 +42,32 @@ class NeuralNetworkFFBP(BaseModel):
 			#Define the shape of the layer based on which layer it is
 			if layer_idx == (number_of_layers - 1):
 				#Output layer
+				values_shape = (number_of_classes,1)
 				if layer_idx == 0:
 					#1 layer neural net: inputs feeding output layer
-					layer_shape = (number_of_classes, number_of_input_features)
+					nodes_shape = (number_of_classes, number_of_input_features)
 				else:
 					#2+ layer neural net: hidden layers feeding output layer
-					layer_shape = (number_of_classes, number_of_hidden_layer_nodes)
+					nodes_shape = (number_of_classes, number_of_hidden_layer_nodes)
 			else:
+				values_shape = (number_of_hidden_layer_nodes,1)
 				#Hidden layer
 				if layer_idx == 0:
 					#Use inputs as size
-					layer_shape = (number_of_hidden_layer_nodes, number_of_input_features)
+					nodes_shape = (number_of_hidden_layer_nodes, number_of_input_features)
 				else:
 					#Use previous layer size as input
-					layer_shape = (number_of_hidden_layer_nodes, number_of_hidden_layer_nodes)
+					nodes_shape = (number_of_hidden_layer_nodes, number_of_hidden_layer_nodes)
 
 			#Using the proper shape, create default weights (-0.01 - 0.01), outputs (0), and deltas (0)
-			weights = np.random.randint(-10, 11, layer_shape) / 1000 #Should create 2d random matrix w/ weights -0.01 - 0.01
+			weights = np.random.randint(-10, 11, nodes_shape) / 1000 #Should create 2d random matrix w/ weights -0.01 - 0.01
 			layer_dictionary['weights'] = weights
-			deltas = np.zeros(layer_shape)
+
+			deltas = np.zeros(values_shape)
 			layer_dictionary['deltas'] = deltas
-			outputs = np.zeros((layer_shape[0], 1))
+			outputs = np.zeros(values_shape)
 			layer_dictionary['outputs'] = outputs
-			errors = np.zeros((layer_shape[0], 1))
+			errors = np.zeros(values_shape)
 			layer_dictionary['errors'] = outputs
 
 			#Add this layer
@@ -96,7 +99,7 @@ class NeuralNetworkFFBP(BaseModel):
 		#Stopping criteria ('convergence')
 		epoch_counter = 0
 		total_mean_squared_error = 9999
-		error_threshold = 0.01
+		error_threshold = 0.1
 	
 		while (epoch_counter < max_epochs and total_mean_squared_error > error_threshold):
 			#print('epoch:', epoch_counter)
@@ -116,14 +119,16 @@ class NeuralNetworkFFBP(BaseModel):
 				inputs = data_as_np[input_idx]
 				target_value = inputs[-1]
 				input_no_label = inputs[:-1]
-				#print('inputs:',inputs, 'target-value', target_value)
+				print('inputs:',inputs, 'target-value', target_value)
 
 				#Calculate the outputs
 				next_inputs = input_no_label 
 				for layer in self.layers:
-					dot_product = np.dot(next_inputs, layer['weights'])
-					layer['outputs'] = self.sigmoid(dot_product)
-					next_inputs = layer['outputs'] #This layer feeds the next
+					dot_product = np.dot(next_inputs, layer['weights'].T) #Transpose weights to apply inputs per node
+					result = self.sigmoid(dot_product)
+					result_2d = np.reshape(result, (len(result),1))
+					layer['outputs'] = result_2d
+					next_inputs = result #next layer feeds the inputs, note they must be 1d array for proper dot product
 
 				#BACKPROPOGATE
 				#====================
@@ -139,7 +144,7 @@ class NeuralNetworkFFBP(BaseModel):
 						layer_error = self.get_output_error(target_value, layer)
 					else:
 						#HIDDEN LAYER
-						layer_error = self.get_hidden_layer_error[layer_idx+1]
+						layer_error = self.get_hidden_layer_error(self.layers[layer_idx+1])
 
 					layer['errors'] = layer_error
 
@@ -152,11 +157,20 @@ class NeuralNetworkFFBP(BaseModel):
 				#Update each layer with weight deltas
 				#NOTE can do this every iteration (small learn rate) 
 				#		or every epoch (large learning rate)
+				next_inputs = input_no_label
 				for layer in self.layers:
-					layer['weights'] += learning_rate * layer['deltas'] * input_no_label
+					print('deltas')
+					print(layer['deltas'])
+					update_amt = learning_rate * layer['deltas']
+					print('update_amt')
+					print(update_amt)
+					print('update_amt per input')
+					print(update_amt * next_inputs)
+					layer['weights'] += learning_rate * layer['deltas'] * next_inputs #Transpose deltas to apply each per node, not per weight
+					next_inputs = layer['outputs'].flatten()
 
-				#print('layers after training:')
-				#print(self.layers)
+				print('layers after training:')
+				print(self.layers)
 
 			#Update stopping criteria
 			epoch_counter += 1
@@ -183,11 +197,17 @@ class NeuralNetworkFFBP(BaseModel):
 		#Setup target_value as vector can be applied to all output neurons
 		#Each output neuron represents a class, indexed from 0
 		shape_of_layer = output_layer['outputs'].shape
-		target_value_as_vector = np.zeros(shape_of_layer[0])
-		target_value_as_vector[target_value] = 1 
-		output_error = target_value_as_vector - output_layer['outputs']
+		target_value_as_matrix = np.zeros(shape_of_layer)
+		print('target_value_as_matrix')
+		target_value_as_matrix[target_value] = 1 
+		print(target_value_as_matrix)
+		print('outputs')
+		print(output_layer['outputs'])
+		output_error = target_value_as_matrix - output_layer['outputs']
+		print('output error')
+		print(output_error)
 		#Reshape the output to match the neural network shape, i.e. 1 val per row
-		output_error = np.reshape(output_error, (len(output_error), -1))
+		#output_error = np.reshape(output_error, (len(output_error), -1))
 		return output_error
 
 	#=============================
@@ -200,8 +220,8 @@ class NeuralNetworkFFBP(BaseModel):
 	#@return	total_mean_squared_error	
 	#=============================
 	def get_total_mean_squared_error(self, layer):
-		error_vector = layer['errors']
-		total_mean_squared_error = 0.5 * np.mean(np.sum(np.power(error_vector,2), axis=1))
+		errors = layer['errors']
+		total_mean_squared_error = 0.5 * np.sum(np.power(errors,2))
 		return total_mean_squared_error
 
 	#=============================
@@ -215,7 +235,7 @@ class NeuralNetworkFFBP(BaseModel):
 	#@return	hidden layer error	
 	#=============================
 	def get_hidden_layer_error(self, next_layer):
-		hidden_layer_error = np.dot(next_layer['deltas'], next_layer['weights'])
+		np.sum(np.multiply(next_layer['deltas'], next_layer['weights']))
 		return hidden_layer_error
 
 	#=============================
@@ -230,7 +250,18 @@ class NeuralNetworkFFBP(BaseModel):
 	#=============================
 	#output*(1-output) * error
 	def get_delta(self, layer):
+		print('getting delta, heres the layer before')
+		print(self.layers)
+		print('layer[outputs]')
+		print(layer['outputs'])
+		print('1-layer[outputs]')
+		print(1-layer['outputs'])
+		print('layer[errors]')
+		print(layer['errors'])
+
 		delta = layer['outputs'] * (1 - layer['outputs']) * layer['errors']
+		print('delta')
+		print(delta)
 		return delta
 
 	#=============================
@@ -276,10 +307,11 @@ class NeuralNetworkFFBP(BaseModel):
 
 				#Calculate the outputs
 				layer_output = self.layers[0]['outputs'] #placeholder
+				next_inputs = input_no_label 
 				for layer in self.layers:
-					dot_product = np.dot(input_no_label, layer['weights'])
+					dot_product = np.dot(next_inputs, layer['weights'].T) #Transpose weights to apply inputs per node
 					layer_output = self.sigmoid(dot_product)
-					input_no_label = layer_output #Feed outputs forward 
+					next_inputs = layer_output #next layer feeds the inputs, note they must be 1d array for proper dot product
 
 				print('neural_net output', layer_output)
 				predicted_class = np.argmax(layer_output, axis=0)
@@ -306,7 +338,7 @@ def main():
 	print('===========================================')
 	print('TEST 1: train the model with no hidden layer')
 
-	data = data1
+	data = data2
 	print('data')
 	print(data)
 
@@ -328,6 +360,7 @@ def main():
 	print('===========================================')
 	print()
 
+'''
 	print()
 	print('===========================================')
 	print('TEST 2: train the model with 1 hidden layer but linearly separable')
@@ -336,12 +369,12 @@ def main():
 	print(data)
 
 	number_of_layers = 2
-	nodes_per_layer = len(data) - 1 #same number as features
+	nodes_per_layer = 4
 	print('-CREATE neural network:', number_of_layers, 'layers, ', nodes_per_layer, 'nodes')
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 0.07
+	learning_rate = 0.5
 	max_epoch = 1000
 	print('-TRAIN')
 	neural_net.train(learning_rate, max_epoch)
@@ -352,7 +385,6 @@ def main():
 	print('===========================================')
 	print()
 
-'''
     # ----------- XOR Function -----------------
 	print()
 	print('TEST 3: train the model with 1 hidden layer, non-linearly separable')
