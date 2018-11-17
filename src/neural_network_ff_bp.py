@@ -235,7 +235,7 @@ class NeuralNetworkFFBP(BaseModel):
 	#@return	hidden layer error	
 	#=============================
 	def get_hidden_layer_error(self, next_layer):
-		np.sum(np.multiply(next_layer['deltas'], next_layer['weights']))
+		hidden_layer_error = np.sum(np.multiply(next_layer['deltas'], next_layer['weights']))
 		return hidden_layer_error
 
 	#=============================
@@ -334,6 +334,7 @@ def main():
 	xor_data = [[0, 0, 0], [0, 1, 1], [ 1, 0, 1], [1, 1, 0]] 
 	xor_data = pd.DataFrame(xor_data)
 
+	'''
 	print()
 	print('===========================================')
 	print('TEST 1: train the model with no hidden layer')
@@ -359,8 +360,7 @@ def main():
 	print('accuracy:', float(result[0]/result[1]) * 100, '%')
 	print('===========================================')
 	print()
-
-'''
+	'''
 	print()
 	print('===========================================')
 	print('TEST 2: train the model with 1 hidden layer but linearly separable')
@@ -374,8 +374,8 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 0.5
-	max_epoch = 1000
+	learning_rate = 0.05
+	max_epoch = 1
 	print('-TRAIN')
 	neural_net.train(learning_rate, max_epoch)
 
@@ -384,6 +384,7 @@ def main():
 	neural_net.test(data, True)
 	print('===========================================')
 	print()
+'''
 
     # ----------- XOR Function -----------------
 	print()
