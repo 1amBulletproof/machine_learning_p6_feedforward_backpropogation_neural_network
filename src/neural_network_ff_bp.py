@@ -369,7 +369,7 @@ def main():
 	print(data)
 
 	number_of_layers = 2
-	nodes_per_layer = 4
+	nodes_per_layer = 3
 	print('-CREATE neural network:', number_of_layers, 'layers, ', nodes_per_layer, 'nodes')
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
