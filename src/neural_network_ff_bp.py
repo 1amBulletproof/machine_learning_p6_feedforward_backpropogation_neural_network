@@ -30,6 +30,7 @@ class NeuralNetworkFFBP(BaseModel):
 		#print('build_neural_network:')
 
 		#TODO: Add a bias to every hidden layer
+		#ASSUME the last value (-1) is the bias for all matrixes
 
 		layers = [] #list of layers (as maps)...layers can contain weights, outputs, deltas
 		#Get the actual classes
@@ -42,22 +43,22 @@ class NeuralNetworkFFBP(BaseModel):
 			#Define the shape of the layer based on which layer it is
 			if layer_idx == (number_of_layers - 1):
 				#Output layer
-				values_shape = (number_of_classes,1)
+				values_shape = (number_of_classes+1,1) #+1 for bias 
 				if layer_idx == 0:
 					#1 layer neural net: inputs feeding output layer
-					nodes_shape = (number_of_classes, number_of_input_features)
+					nodes_shape = (number_of_classes, number_of_input_features+1) #+1 for bias 
 				else:
 					#2+ layer neural net: hidden layers feeding output layer
-					nodes_shape = (number_of_classes, number_of_hidden_layer_nodes)
+					nodes_shape = (number_of_classes, number_of_hidden_layer_nodes+1) #+1 for bias
 			else:
-				values_shape = (number_of_hidden_layer_nodes,1)
+				values_shape = (number_of_hidden_layer_nodes+1,1)
 				#Hidden layer
 				if layer_idx == 0:
 					#Use inputs as size
-					nodes_shape = (number_of_hidden_layer_nodes, number_of_input_features)
+					nodes_shape = (number_of_hidden_layer_nodes+1, number_of_input_features+1) #+1 for bias
 				else:
 					#Use previous layer size as input
-					nodes_shape = (number_of_hidden_layer_nodes, number_of_hidden_layer_nodes)
+					nodes_shape = (number_of_hidden_layer_nodes+1, number_of_hidden_layer_nodes+1) #+1 for bias
 
 			#Using the proper shape, create default weights (-0.01 - 0.01), outputs (0), and deltas (0)
 			weights = np.random.randint(-10, 11, nodes_shape) / 1000 #Should create 2d random matrix w/ weights -0.01 - 0.01
@@ -104,18 +105,14 @@ class NeuralNetworkFFBP(BaseModel):
 		while (epoch_counter < max_epochs and total_mean_squared_error > error_threshold):
 			#print('epoch:', epoch_counter)
 
-			#randomize the inputs every time
-
-			#TODO: put shuffle back on 
-			#np.random.shuffle(data_as_np)
+			#Randomize inputs
+			np.random.shuffle(data_as_np)
 
 			#Iterate all inputs, update weights each itr or after all
 			for input_idx in range(0, len(data_as_np)):
 				#FEEDFORWARD
 				#====================
 				#Calculate the output at each layer, front to back
-
-				#TODO: don't forget to account for the bias
 
 				#Separate features from target value (class)
 				inputs = data_as_np[input_idx]
@@ -128,7 +125,8 @@ class NeuralNetworkFFBP(BaseModel):
 				for layer_idx in range(0,self.number_of_layers):
 					#print('OUTPUT LAYER:', layer_idx)
 					layer = self.layers[layer_idx]
-					dot_product = np.dot(next_inputs, layer['weights'].T) #Transpose weights to apply inputs per node
+					#factor in bias
+					dot_product = np.dot(next_inputs, layer['weights'][:,:-1].T) +  layer['weights'][:,-1]#Transpose weights to apply inputs per node
 					result = self.sigmoid(dot_product)
 					result_2d = np.reshape(result, (len(result),1))
 					layer['outputs'] = result_2d
@@ -156,6 +154,8 @@ class NeuralNetworkFFBP(BaseModel):
 					#DELTA
 					#print('BP ERROR & DELTA LAYER:', layer_idx)
 					layer_delta = self.get_delta(layer)
+					print('layer_delta')
+					print(layer_delta)
 					layer['deltas'] = layer_delta
 
 				#UPDATE WEIGHTS
@@ -165,21 +165,28 @@ class NeuralNetworkFFBP(BaseModel):
 				#		or every epoch (large learning rate)
 				next_inputs = input_no_label
 				for layer_idx in range(0,self.number_of_layers):
+					print('next_inputs original')
+					print(next_inputs)
+					next_inputs = np.append(next_inputs, 1) #Include the bias input so that its weight gets updated
+					print('next_inputs after modification')
+					print(next_inputs)
 					#print('UPDATE WGHT LAYER:', layer_idx)
 					layer = self.layers[layer_idx]
 
-					'''
 					#Only for debugging hidden layers
-					if(layer_idx != self.number_of_layers - 1):
-						print('layer is hidden layer')
-						print('deltas')
-						print(layer['deltas'])
-						update_amt = learning_rate * layer['deltas']
-						print('update_amt')
-						print(update_amt)
-						print('update_amt per input')
-						print(update_amt * next_inputs)
-						'''
+					#if(layer_idx != self.number_of_layers - 1):
+					print('layer is hidden layer')
+					print('deltas')
+					print(layer['deltas'])
+					update_amt = learning_rate * layer['deltas']
+					print('update_amt')
+					print(update_amt)
+					print('next_inputs')
+					print(next_inputs)
+					print('update_amt per input')
+					print(update_amt * next_inputs)
+					print('layer[weights]')
+					print(layer['weights'])
 
 					layer['weights'] += learning_rate * layer['deltas'] * next_inputs 
 					next_inputs = layer['outputs'].flatten()
@@ -336,7 +343,7 @@ class NeuralNetworkFFBP(BaseModel):
 					#print(next_inputs)
 					#print('layer[weights]')
 					#print(layer['weights'])
-					dot_product = np.dot(next_inputs, layer['weights'].T) #Transpose weights to apply inputs per node
+					dot_product = np.dot(next_inputs, layer['weights'][:,:-1].T) + layer['weights'][:,-1]#Transpose weights to apply inputs per node
 					#print('dot_product')
 					#print(dot_product)
 					layer_output = self.sigmoid(dot_product)
@@ -367,7 +374,7 @@ def main():
 	xor_data = [[0, 0, 0], [0, 1, 1], [ 1, 0, 1], [1, 1, 0]] 
 	xor_data = pd.DataFrame(xor_data)
 
-
+'''
 	print()
 	print('===========================================')
 	print('TEST 1: train the model with no hidden layer')
@@ -394,6 +401,7 @@ def main():
 	print('===========================================')
 	print()
 
+'''
 	print()
 	print('===========================================')
 	print('TEST 2: train the model with 1 hidden layer but linearly separable')
@@ -418,6 +426,7 @@ def main():
 	print('accuracy:', float(result[0]/result[1]) * 100, '%')
 	print('===========================================')
 	print()
+'''
 
     # ----------- XOR Function -----------------
 	print()
@@ -469,6 +478,7 @@ def main():
 	print('accuracy:', float(result[0]/result[1]) * 100, '%')
 	print('===========================================')
 	print()
+	'''
 	
 if __name__ == "__main__":
 	main()
