@@ -382,7 +382,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 0.1
+	learning_rate = 1
 	max_epoch = 1000
 	print('-TRAIN')
 	neural_net.train(learning_rate, max_epoch)
@@ -407,7 +407,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 0.1
+	learning_rate = 1
 	max_epoch = 1000
 	print('-TRAIN')
 	neural_net.train(learning_rate, max_epoch)
@@ -433,7 +433,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 0.1
+	learning_rate = 1
 	max_epoch = 1000
 	print('learn the model (learning rate:', learning_rate, ')')
 	neural_net.train(learning_rate, max_epoch)
@@ -458,7 +458,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 0.1
+	learning_rate = 1
 	max_epoch = 1000
 	print('learn the model (learning rate:', learning_rate, ')')
 	neural_net.train(learning_rate, max_epoch)
