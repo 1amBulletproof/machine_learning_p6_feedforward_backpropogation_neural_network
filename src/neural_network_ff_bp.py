@@ -91,7 +91,7 @@ class NeuralNetworkFFBP(BaseModel):
 	#@param	max_epochs	determine the maximum number of epochs to train-on
 	#@return	weight_vectors
 	#=============================
-	def train(self, learning_rate=0.5, max_epochs=9999):
+	def train(self, learning_rate=0.5, max_epochs=9999, error_threshold=0.01):
 
 		#Convert dataframe to numpa
 		data_as_np = self.data.values
@@ -99,7 +99,6 @@ class NeuralNetworkFFBP(BaseModel):
 		#Stopping criteria ('convergence')
 		epoch_counter = 0
 		total_mean_squared_error = 9999
-		error_threshold = 0.01
 	
 		while (epoch_counter < max_epochs and total_mean_squared_error > error_threshold):
 			#print('epoch:', epoch_counter)
@@ -377,12 +376,12 @@ class NeuralNetworkFFBP(BaseModel):
 					#print(next_inputs)
 
 
-				print('neural_net output', layer_output)
 				predicted_class = np.argmax(layer_output, axis=0)
 				if predicted_class == target_value:
 					number_prediction_correct += 1
 
 				if print_classifications:
+					print('neural_net output', layer_output)
 					print('target:', target_value, 'prediction:', predicted_class)
 
 		return (number_prediction_correct, number_of_tests)

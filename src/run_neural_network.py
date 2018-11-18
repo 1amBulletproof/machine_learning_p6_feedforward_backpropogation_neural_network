@@ -19,7 +19,7 @@ import pandas as pd
 #		test on 5th, cycle the 4/5 & repeat 5 times
 #		Record overall result!
 #=============================
-def run_models_with_cross_validation(number_of_layers, nodes_per_layer, learning_rate, max_epoch):
+def run_models_with_cross_validation(number_of_layers, nodes_per_layer, learning_rate, max_epoch, error_thresh):
 
 	#GET DATA
 	#- expect data_0 ... data_4
@@ -57,7 +57,7 @@ def run_models_with_cross_validation(number_of_layers, nodes_per_layer, learning
 		train_data = pd.DataFrame(train_data)
 		print(train_data.head())
 		model1 = NeuralNetworkFFBP(train_data, number_of_layers, nodes_per_layer)
-		model1.train(learning_rate, max_epoch)
+		model1.train(learning_rate, max_epoch, error_thresh)
 
 		print_classifications = False
 		if (test_group_id == 0): #Required to print classifications for one fold
@@ -86,14 +86,16 @@ def main():
 	parser.add_argument('num_nodes_per_hidden_layer', type=int, help='number of hidden layers in neural network processing data')
 	parser.add_argument('training_rate', type=float, help='rate at which to train')
 	parser.add_argument('max_epochs', type=int, help='number of training epochs')
+	parser.add_argument('error_threshold', type=float, help='maximum error allowed for stopping point')
 	args = parser.parse_args()
 	print(args)
 	num_nodes_per_hidden_layer = args.num_nodes_per_hidden_layer
 	num_layers = args.num_layers
 	training_rate = args.training_rate
 	max_epochs = args.max_epochs
+	error_thresh = args.error_threshold
 
-	final_result = run_models_with_cross_validation(num_layers, num_nodes_per_hidden_layer, training_rate, max_epochs)
+	final_result = run_models_with_cross_validation(num_layers, num_nodes_per_hidden_layer, training_rate, max_epochs, error_thresh)
 	print()
 	print('Feedforward Neural Network AVG Accuracy (%):', final_result, '%') 
 
