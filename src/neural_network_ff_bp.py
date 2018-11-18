@@ -29,8 +29,7 @@ class NeuralNetworkFFBP(BaseModel):
 	def build_neural_network(self, number_of_layers, number_of_hidden_layer_nodes):
 		#print('build_neural_network:')
 
-		#TODO: Add a bias to every hidden layer
-		#ASSUME the last value (-1) is the bias for all matrixes
+		#ASSUME the last value (-1) of any array/matrix is the bias for all matrixes
 
 		layers = [] #list of layers (as maps)...layers can contain weights, outputs, deltas
 		#Get the actual classes
@@ -51,7 +50,7 @@ class NeuralNetworkFFBP(BaseModel):
 					#2+ layer neural net: hidden layers feeding output layer
 					nodes_shape = (number_of_classes, number_of_hidden_layer_nodes+1) #+1 for bias
 			else:
-				values_shape = (number_of_hidden_layer_nodes+1,1)
+				values_shape = (number_of_hidden_layer_nodes+1,1) #+1 for bias
 				#Hidden layer
 				if layer_idx == 0:
 					#Use inputs as size
@@ -118,19 +117,37 @@ class NeuralNetworkFFBP(BaseModel):
 				inputs = data_as_np[input_idx]
 				target_value = inputs[-1]
 				input_no_label = inputs[:-1]
+				input_no_label_with_bias = np.append(input_no_label, 1) #Include the bias input so that its weight gets updated
 				#print('inputs:',inputs, 'target-value', target_value)
 
 				#Calculate the outputs
-				next_inputs = input_no_label 
+				next_inputs = input_no_label_with_bias 
 				for layer_idx in range(0,self.number_of_layers):
+					next_inputs[-1] = 1 #account for bias clamped to +1
 					#print('OUTPUT LAYER:', layer_idx)
 					layer = self.layers[layer_idx]
-					#factor in bias
-					dot_product = np.dot(next_inputs, layer['weights'][:,:-1].T) +  layer['weights'][:,-1]#Transpose weights to apply inputs per node
-					result = self.sigmoid(dot_product)
-					result_2d = np.reshape(result, (len(result),1))
+					#print('layer')
+					#print(layer)
+					#print('next_inputs')
+					#print(next_inputs)
+					#print('weights')
+					#print(layer['weights'])
+					#print('bias')
+					#print(layer['weights'][:,-1])
+					#print('dot_product')
+					#print(np.dot(next_inputs, layer['weights'].T))
+					#Transpose weights to apply inputs per node, also add bias
+					dot_product = np.dot(next_inputs, layer['weights'].T) 
+
+					result = self.sigmoid(dot_product) 
+					#print('result')
+					#print(result)
+					result_2d_shape = (len(result), 1)
+					result_2d = np.reshape(result, result_2d_shape)
 					layer['outputs'] = result_2d
-					next_inputs = result #next layer feeds the inputs, note they must be 1d array for proper dot product
+					#next layer feeds the inputs, must be 1d arrya for proper dot product (b/c data inputs come in as 1d array)
+					#Don't modify the actual output result for the bias because it's needed for updating?!
+					next_inputs = result
 
 				#BACKPROPOGATE
 				#====================
@@ -154,8 +171,8 @@ class NeuralNetworkFFBP(BaseModel):
 					#DELTA
 					#print('BP ERROR & DELTA LAYER:', layer_idx)
 					layer_delta = self.get_delta(layer)
-					print('layer_delta')
-					print(layer_delta)
+					#print('layer_delta')
+					#print(layer_delta)
 					layer['deltas'] = layer_delta
 
 				#UPDATE WEIGHTS
@@ -163,30 +180,30 @@ class NeuralNetworkFFBP(BaseModel):
 				#Update each layer with weight deltas
 				#NOTE can do this every iteration (small learn rate) 
 				#		or every epoch (large learning rate)
-				next_inputs = input_no_label
+				next_inputs = input_no_label_with_bias
 				for layer_idx in range(0,self.number_of_layers):
-					print('next_inputs original')
-					print(next_inputs)
-					next_inputs = np.append(next_inputs, 1) #Include the bias input so that its weight gets updated
-					print('next_inputs after modification')
-					print(next_inputs)
+					next_inputs[-1] = 1 #account for bias clamped to +1
+					#print('next_inputs original')
+					#print(next_inputs)
+					#print('next_inputs after modification')
+					#print(next_inputs)
 					#print('UPDATE WGHT LAYER:', layer_idx)
 					layer = self.layers[layer_idx]
 
 					#Only for debugging hidden layers
 					#if(layer_idx != self.number_of_layers - 1):
-					print('layer is hidden layer')
-					print('deltas')
-					print(layer['deltas'])
+					#print('layer is hidden layer')
+					#print('deltas')
+					#print(layer['deltas'])
 					update_amt = learning_rate * layer['deltas']
-					print('update_amt')
-					print(update_amt)
-					print('next_inputs')
-					print(next_inputs)
-					print('update_amt per input')
-					print(update_amt * next_inputs)
-					print('layer[weights]')
-					print(layer['weights'])
+					#print('update_amt')
+					#print(update_amt)
+					#print('next_inputs')
+					#print(next_inputs)
+					#print('update_amt per input')
+					#print(update_amt * next_inputs)
+					#print('layer[weights]')
+					#print(layer['weights'])
 
 					layer['weights'] += learning_rate * layer['deltas'] * next_inputs 
 					next_inputs = layer['outputs'].flatten()
@@ -332,28 +349,35 @@ class NeuralNetworkFFBP(BaseModel):
 				inputs = data_as_np[input_idx]
 				target_value = inputs[-1]
 				input_no_label = inputs[:-1]
+				input_no_label_with_bias = np.append(input_no_label, 1) #Include the bias input so that its weight gets updated
+				#print('inputs:',inputs, 'target-value', target_value)
 
 				#Calculate the outputs
 				layer_output = self.layers[0]['outputs'] #placeholder
-				next_inputs = input_no_label 
+				next_inputs = input_no_label_with_bias
 				for layer_idx in range(0, self.number_of_layers):
+					next_inputs[-1] = 1 #account for bias clamped to +1
 					layer = self.layers[layer_idx]
 					#print('Layer:', layer_idx)
 					#print('next_inputs')
 					#print(next_inputs)
 					#print('layer[weights]')
 					#print(layer['weights'])
-					dot_product = np.dot(next_inputs, layer['weights'][:,:-1].T) + layer['weights'][:,-1]#Transpose weights to apply inputs per node
+					#Transpose weights to apply inputs per node, also add bias (since it would have been multiplied by 1, just add the weights)
+					dot_product = np.dot(next_inputs, layer['weights'].T)
 					#print('dot_product')
 					#print(dot_product)
 					layer_output = self.sigmoid(dot_product)
 					#print('layer_output (sigmoid())')
 					#print(layer_output)
-					next_inputs = layer_output #next layer feeds the inputs, note they must be 1d array for proper dot product
+					#next layer feeds the inputs, must be 1d arrya for proper dot product (b/c data inputs come in as 1d array)
+					#Don't modify the actual output result for the bias because it's needed for updating?!
+					next_inputs = layer_output
 					#print('next_inputs')
 					#print(next_inputs)
 
-				#print('neural_net output', layer_output)
+
+				print('neural_net output', layer_output)
 				predicted_class = np.argmax(layer_output, axis=0)
 				if predicted_class == target_value:
 					number_prediction_correct += 1
@@ -374,7 +398,6 @@ def main():
 	xor_data = [[0, 0, 0], [0, 1, 1], [ 1, 0, 1], [1, 1, 0]] 
 	xor_data = pd.DataFrame(xor_data)
 
-'''
 	print()
 	print('===========================================')
 	print('TEST 1: train the model with no hidden layer')
@@ -389,7 +412,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 1
+	learning_rate = 0.5
 	max_epoch = 1000
 	print('-TRAIN')
 	neural_net.train(learning_rate, max_epoch)
@@ -401,7 +424,6 @@ def main():
 	print('===========================================')
 	print()
 
-'''
 	print()
 	print('===========================================')
 	print('TEST 2: train the model with 1 hidden layer but linearly separable')
@@ -415,7 +437,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 1
+	learning_rate = 0.5
 	max_epoch = 1000
 	print('-TRAIN')
 	neural_net.train(learning_rate, max_epoch)
@@ -426,7 +448,6 @@ def main():
 	print('accuracy:', float(result[0]/result[1]) * 100, '%')
 	print('===========================================')
 	print()
-'''
 
     # ----------- XOR Function -----------------
 	print()
@@ -442,7 +463,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 1
+	learning_rate = 0.5
 	max_epoch = 1000
 	print('learn the model (learning rate:', learning_rate, ')')
 	neural_net.train(learning_rate, max_epoch)
@@ -467,7 +488,7 @@ def main():
 	neural_net = NeuralNetworkFFBP(data, number_of_layers, nodes_per_layer)
 
 	print()
-	learning_rate = 1
+	learning_rate = 0.5
 	max_epoch = 1000
 	print('learn the model (learning rate:', learning_rate, ')')
 	neural_net.train(learning_rate, max_epoch)
@@ -478,7 +499,6 @@ def main():
 	print('accuracy:', float(result[0]/result[1]) * 100, '%')
 	print('===========================================')
 	print()
-	'''
 	
 if __name__ == "__main__":
 	main()
